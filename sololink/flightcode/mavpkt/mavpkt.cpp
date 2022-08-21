@@ -85,9 +85,9 @@ static uint8_t mavlink_crc[] = MAVLINK_MESSAGE_CRCS;
 // A mavlink packet is limited to 6+255+2 = 263 bytes
 // 6 byte header, 255 max bytes in payload, 2 byte crc
 
-#ifndef MAVLINK_STX
-#define MAVLINK_STX     254
-#endif
+// #ifndef MAVLINK_STX // comes from mavlink.h on mavlink2 as 253
+// #define MAVLINK_STX     254
+// #endif
 
 // input stream bytes to read at once
 #define READ_MAX        1024

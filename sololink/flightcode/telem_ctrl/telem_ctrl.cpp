@@ -605,8 +605,8 @@ static void *tlm_main(void *)
                 int skipped;
                 if ((skipped = can_log_error(now_us)) >= 0)
                     syslog(LOG_ERR, "[%u] received runt packet (%d bytes)", skipped, res);
-            } else if (packet.payload[0] != 0xFE && packet.payload[0] != 0xFD) {
-                int skipped;
+            } else if (packet.payload[0] != 0xFE && packet.payload[0] != 0xFD) { // mavlink1 and mavlink2 ok to forward
+                 int skipped;
                 if ((skipped = can_log_error(now_us)) >= 0)
                     syslog(LOG_ERR, "[%u] received bad magic (0x%02x)", skipped, packet.payload[0]);
             }
@@ -633,13 +633,13 @@ static void *tlm_main(void *)
                     uint8_t seq;
                     uint8_t siglen = 0;
                     #define MAVLINK_STX_MAVLINK1 254
-                    if (p_payload[0] == MAVLINK_STX_MAVLINK1) {
+                    if (p_payload[0] == MAVLINK_STX_MAVLINK1) { // mavlink1
                         message_id = p_payload[5];
                         sys_id = p_payload[3];
                         comp_id = p_payload[4];
                         payload_offset = 6;
                         seq = p_payload[2];
-                    } else {
+                    } else { // mavlink2 
                         message_id = (p_payload[7]) | (p_payload[8]<<8) | p_payload[9]<<16;
                         sys_id = p_payload[5];
                         comp_id = p_payload[6];

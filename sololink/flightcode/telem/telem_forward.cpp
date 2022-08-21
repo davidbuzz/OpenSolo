@@ -567,11 +567,11 @@ void *upstream_task(void *)
             bool good_stx = false;
             uint8_t framing_bytecount;
             switch (buf[0]) {
-            case MAVLINK_STX:
+            case MAVLINK_STX: // 254 or 253 depending on mavlink header linked in, 253 = mav2
                 good_stx = true;
                 framing_bytecount = MAVLINK_CORE_HEADER_LEN + MAVLINK_NUM_CHECKSUM_BYTES + 1;
                 break;
-            case MAVLINK_STX_MAVLINK1:
+            case MAVLINK_STX_MAVLINK1: // always 254
                 good_stx = true;
                 framing_bytecount = MAVLINK_CORE_HEADER_MAVLINK1_LEN + MAVLINK_NUM_CHECKSUM_BYTES + 1;
                 break;
@@ -610,7 +610,7 @@ void *upstream_task(void *)
                     source_system = buf[3];
                     source_component = buf[4];
                     payload_offset = 6;
-                } else {
+                } else { // mavlink2
                     message_id = (buf[7]) | (buf[8]<<8) | buf[9]<<16;
                     source_system = buf[5];
                     source_component = buf[6];
