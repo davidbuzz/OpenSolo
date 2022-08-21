@@ -3,8 +3,13 @@
 
 #include <stdint.h>
 
+static const int PKT_MTU = 1500; /* MTU  */
+
+static const int MAX_PAYLOAD = 1444; /* 1500 MTU minus the header HDR_LEN 56 */
+
+
+
 struct LinkPacket {
-    static const int MAX_PAYLOAD = 1444; /* MTU minus the header */
 
     uint64_t tf_recv_us;
     uint64_t tf_send_us;
@@ -20,5 +25,17 @@ struct LinkPacket {
     // everything but the payload
     static const int HDR_LEN = 56;
 };
+
+// just bytes in 'payload' 
+struct MAVPacket {
+    uint8_t payload[PKT_MTU];
+};
+
+
+// union GenericPacket {
+//     struct LinkPacket linkpkt;
+//     struct MAVPacket  mavpkt;
+// }; // after the anonymous union definition, the members of the anonymous union are considered to have been defined in the scope in which the anonymous union is declared
+
 
 #endif // LINK_PACKET_H

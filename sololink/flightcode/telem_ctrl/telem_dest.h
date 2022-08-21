@@ -19,8 +19,9 @@
 // Each entry either wants raw mavlink, or a link_packet (mavlink with
 // metadata wrapper).
 typedef enum {
-    TF_MAVLINK,     // raw mavlink
-    TF_LINK_PACKET, // link_packet.h
+    TF_MAVLINK1=1,     // raw mavlink
+    TF_MAVLINK2=2,     // raw mavlink
+    TF_LINK_PACKET=3, // link_packet.h
     TF_MAX          // (last)
 } telem_format_t;
 
@@ -47,7 +48,7 @@ struct telem_dest_table {
     void dump(int priority) const;
     void check(void) const;
     int add(const uint8_t *mac, const in_addr_t ip, const short port_hbo, int tos = 0,
-            telem_format_t format = TF_MAVLINK);
+            telem_format_t format = TF_MAVLINK1);
     void delete_by_index(int index);
     int find_by_mac_ip(const uint8_t *mac, const in_addr_t ip) const;
 };
