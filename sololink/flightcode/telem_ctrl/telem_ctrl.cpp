@@ -429,7 +429,7 @@ static void lock_mem(uint32_t size)
     memset(stack, 0, sizeof(stack));
 }
 
-#define TELEM_PKT_MAX 512
+#define TELEM_PKT_MAX 1500
 
 /*
 * tlm_main
@@ -443,7 +443,8 @@ static void *tlm_main(void *)
     uint64_t now_us;
     uint8_t pkt[TELEM_PKT_MAX];
     LinkPacket packetL;
-    MAVPacket packet;
+   // MAVPacket packet;
+    uint8_t packet[TELEM_PKT_MAX];
    // uint32_t link_next_seq = 0;
     struct sockaddr_in sa;
     socklen_t sa_len;
@@ -568,7 +569,7 @@ static void *tlm_main(void *)
             /* packet from solo */
             sa_len = sizeof(sa);
             t1_us = clock_gettime_us(CLOCK_MONOTONIC);
-            res = recvfrom(fd_solo, &packet, sizeof(packet), 0, (struct sockaddr *)&sa, &sa_len);
+            res = recvfrom(fd_solo, &packet, PKT_MTU, 0, (struct sockaddr *)&sa, &sa_len);
             //t2_us = clock_gettime_us(CLOCK_MONOTONIC);
             /* recvfrom should not block; warn if it does */
             // if ((t2_us - t1_us) > 10000)
@@ -580,9 +581,9 @@ static void *tlm_main(void *)
             static telem_format_t mavtype = TF_MAX; // mav1, mav2, other or undefined.
 
             // is this a mavlink 1/2 pkt or a LinkPacket?
-            if (packet.payload[0] == MAVLINK_STX_MAVLINK1) { 
+            if (packet[0] == MAVLINK_STX_MAVLINK1) { 
                 mavtype = TF_MAVLINK1;
-            } else if (packet.payload[0] == MAVLINK_STX ) { 
+            } else if (packet[0] == MAVLINK_STX ) { 
                 mavtype = TF_MAVLINK2;
             } else {
                 mavtype = TF_LINK_PACKET;
@@ -626,16 +627,16 @@ static void *tlm_main(void *)
                 int skipped;
                 if ((skipped = can_log_error(now_us)) >= 0)
                     syslog(LOG_ERR, "[%u] received runt packet (%d bytes)\n", skipped, res);
-            } else if (packet.payload[0] != 0xFE && packet.payload[0] != 0xFD) { // mavlink1 and mavlink2 ok to forward
+            } else if (packet[0] != 0xFE && packet[0] != 0xFD) { // mavlink1 and mavlink2 ok to forward
                  int skipped;
                  if ((skipped = can_log_error(now_us)) >= 0)
-                     syslog(LOG_ERR, "[%u] received bad magic (0x%02x)\n", skipped, packet.payload[0]);
+                     syslog(LOG_ERR, "[%u] received bad magic (0x%02x)\n", skipped, packet[0]);
             }
 
             //else {
                 /* packet is from solo and passes sanity checks */
 
-                unsigned char* cp = packet.payload;
+                unsigned char* cp = packet;
                 for ( ; *cp != '\0'; ++cp )
                 {
                 printf("%02x ", *cp);
@@ -644,7 +645,7 @@ static void *tlm_main(void *)
 
                 /* Run through the entire datagram and check each sequence and sys/comp.
                  * Also check for a GPS time that we can set the clock to */
-                uint8_t *p_payload = packet.payload;
+                //uint8_t *p_payload = packet;
               //  while (p_payload < ((uint8_t *)&packet + res)) {
                     uint32_t message_id;
                     uint8_t sys_id;
@@ -656,20 +657,20 @@ static void *tlm_main(void *)
 
 
                     if (mavtype == TF_MAVLINK1) { // mavlink1
-                        message_id = p_payload[5];
-                        sys_id = p_payload[3];
-                        comp_id = p_payload[4];
+                        message_id = packet[5];
+                        sys_id = packet[3];
+                        comp_id = packet[4];
                         payload_offset = 6;
-                        seq = p_payload[2];
+                        seq = packet[2];
 
                     } else 
                     if (mavtype == TF_MAVLINK1) {
-                        message_id = (p_payload[7]) | (p_payload[8]<<8) | p_payload[9]<<16;//
-                        sys_id = p_payload[5];
-                        comp_id = p_payload[6];
+                        message_id = (packet[7]) | (packet[8]<<8) | packet[9]<<16;//
+                        sys_id = packet[5];
+                        comp_id = packet[6];
                         payload_offset = 10;
-                        seq = p_payload[4];
-                        const uint8_t incompat_flags = p_payload[2];
+                        seq = packet[4];
+                        const uint8_t incompat_flags = packet[2];
                         const uint8_t MAVLINK_IFLAG_SIGNED = (1U << 0);
                         if (incompat_flags & MAVLINK_IFLAG_SIGNED) {
                             //siglen = 13;
@@ -685,7 +686,7 @@ static void *tlm_main(void *)
                     
 
                     source_check(sys_id, comp_id, seq);
-                    printf("src chk sys_id:%d, comp_id:%d, seq:%d stx:%d mav:%d\n",sys_id, comp_id, seq,p_payload[0],(int)mavtype);
+                    printf("src chk sys_id:%d, comp_id:%d, seq:%d stx:%d mav:%d\n",sys_id, comp_id, seq,packet[0],(int)mavtype);
 
                     if (!got_gps_time && message_id == MAVLINK_MSG_ID_SYSTEM_TIME) {
                         // XXX hefty magic here
@@ -693,7 +694,7 @@ static void *tlm_main(void *)
                         int b;
                         uint64_t time_us = 0;
                         for (b = payload_offset+7; b >= payload_offset; b--)
-                            time_us = time_us * 256 + p_payload[b];
+                            time_us = time_us * 256 + packet[b];
                         if (time_us != 0) {
                             char buf[32];
                             syslog(LOG_INFO, "gps time %s\n", clock_tostr_r(time_us, buf));
@@ -735,10 +736,10 @@ static void *tlm_main(void *)
                     const void *buf = NULL;
                     ssize_t len = 0;
                     if (dest_table.dest[i].format == TF_MAVLINK1) {
-                        buf = (const void *)(packet.payload);
+                        buf = (const void *)(packet);
                         len = res;// - LinkPacket::HDR_LEN;
                     } else  if (dest_table.dest[i].format == TF_MAVLINK2) {
-                        buf = (const void *)(packet.payload);
+                        buf = (const void *)(packet);
                         len = res;// - LinkPacket::HDR_LEN;
                     } else  if (dest_table.dest[i].format == TF_LINK_PACKET) {
                         buf = (const void *)(&packetL);// not a 'packet' , a 'packetL', important difference for this one
